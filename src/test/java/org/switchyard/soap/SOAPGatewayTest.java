@@ -38,7 +38,10 @@ import org.switchyard.MessageBuilder;
 import org.switchyard.MockHandler;
 import org.switchyard.ServiceDomain;
 import org.switchyard.internal.ServiceDomains;
+import org.switchyard.soap.util.SOAPUtil;
 import org.switchyard.soap.util.XMLHelper;
+
+import org.w3c.dom.Element;
 
 public class SOAPGatewayTest {
     private static final QName PUBLISH_AS_WS_SERVICE = new QName("publish-as-ws");
@@ -84,9 +87,9 @@ public class SOAPGatewayTest {
 
     @Test
     public void invokeOneWay() throws Exception {
-        String input = "<test:helloWS xmlns:test=\"http://test.ws/\">"
+        Element input = SOAPUtil.parseAsDom("<test:helloWS xmlns:test=\"http://test.ws/\">"
                      + "   <arg0>Hello</arg0>"
-                     + "</test:helloWS>";
+                     + "</test:helloWS>").getDocumentElement();
 
         // Invoke the WS via our WS Consumer service
         MockHandler consumer = new MockHandler();
@@ -98,13 +101,13 @@ public class SOAPGatewayTest {
 
     @Test
     public void invokeRequestResponse() throws Exception {
-        String input = "<test:sayHello xmlns:test=\"http://test.ws/\">"
+        Element input = SOAPUtil.parseAsDom("<test:sayHello xmlns:test=\"http://test.ws/\">"
                      + "   <arg0>Jimbo</arg0>"
-                     + "</test:sayHello>";
+                     + "</test:sayHello>").getDocumentElement();
 
-        String output = "<test:sayHelloResponse xmlns:test=\"http://test.ws/\">"
+        Element output = SOAPUtil.parseAsDom("<test:sayHelloResponse xmlns:test=\"http://test.ws/\">"
                      + "   <return>Hello Jimbo</return>"
-                     + "</test:sayHelloResponse>";
+                     + "</test:sayHelloResponse>").getDocumentElement();
 
         // Invoke the WS via our WS Consumer service
         MockHandler consumer = new MockHandler();
@@ -113,24 +116,24 @@ public class SOAPGatewayTest {
         message.setContent(input);
         exchange.send(message);
         consumer.waitForMessage();
-        String response = consumer._messages.peek().getMessage().getContent(String.class);
-        Assert.assertTrue("Expected \r\n" + output + "\r\nbut was \r\n" + response, XMLHelper.compareXMLContent(output, response));
+        Element response = consumer.getMessages().peek().getMessage().getContent(Element.class);
+        Assert.assertTrue("Expected \r\n" + XMLHelper.toString(output) + "\r\nbut was \r\n" + XMLHelper.toString(response), XMLHelper.compareXMLContent(output, response));
     }
 
     @Test
     public void invokeRequestResponseFault() throws Exception {
-        String input = "<test:sayHello xmlns:test=\"http://test.ws/\">"
+        Element input = SOAPUtil.parseAsDom("<test:sayHello xmlns:test=\"http://test.ws/\">"
                      + "   <arg0></arg0>"
-                     + "</test:sayHello>";
+                     + "</test:sayHello>").getDocumentElement();
 
-        String output = "<soap:Fault xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">"
+        Element output = SOAPUtil.parseAsDom("<soap:Fault xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">"
                         + "   <faultcode>soap:Server.AppError</faultcode>"
                         + "   <faultstring>Invalid name</faultstring>"
                         + "   <detail>"
                         + "      <message>Looks like you did not specify a name!</message>"
                         + "      <errorcode>1000</errorcode>"
                         + "   </detail>"
-                        + "</soap:Fault>";
+                        + "</soap:Fault>").getDocumentElement();
 
         // Invoke the WS via our WS Consumer service
         MockHandler consumer = new MockHandler();
@@ -139,7 +142,7 @@ public class SOAPGatewayTest {
         message.setContent(input);
         exchange.send(message);
         consumer.waitForMessage();
-        String response = consumer._messages.peek().getMessage().getContent(String.class);
-        Assert.assertTrue("Expected \r\n" + output + "\r\nbut was \r\n" + response, XMLHelper.compareXMLContent(output, response));
+        Element response = consumer.getMessages().peek().getMessage().getContent(Element.class);
+        Assert.assertTrue("Expected \r\n" + XMLHelper.toString(output) + "\r\nbut was \r\n" + XMLHelper.toString(response), XMLHelper.compareXMLContent(output, response));
     }
 }

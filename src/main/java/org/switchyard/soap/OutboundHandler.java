@@ -30,7 +30,7 @@ import javax.wsdl.Port;
 import javax.xml.namespace.QName;
 import javax.xml.soap.SOAPException;
 import javax.xml.soap.SOAPMessage;
-import javax.xml.ws.BindingProvider;
+//import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Dispatch;
 import javax.xml.ws.Service;
 import javax.xml.ws.soap.AddressingFeature;
@@ -142,8 +142,8 @@ public class OutboundHandler extends BaseHandler {
                 URL wsdlUrl = new URL(_wsdlLocation);
                 Service service = Service.create(wsdlUrl, serviceName);
                 _dispatcher = service.createDispatch(portName, SOAPMessage.class, Service.Mode.MESSAGE, new AddressingFeature(false, false));
-                BindingProvider bp = (BindingProvider) _dispatcher;
-                // this does not return a proper qualified Fault element and has no Detail so deffering for now
+                // this does not return a proper qualified Fault element and has no Detail so defering for now
+                // BindingProvider bp = (BindingProvider) _dispatcher;
                 // bp.getRequestContext().put("jaxws.response.throwExceptionIfSOAPFault", Boolean.FALSE);
 
             } catch (Exception e) {

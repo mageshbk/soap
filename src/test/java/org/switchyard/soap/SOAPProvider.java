@@ -29,6 +29,11 @@ import org.switchyard.HandlerException;
 import org.switchyard.Message;
 import org.switchyard.MessageBuilder;
 import org.switchyard.message.FaultMessage;
+import org.switchyard.soap.util.SOAPUtil;
+import org.switchyard.soap.util.XMLHelper;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 public class SOAPProvider extends BaseHandler {
 
@@ -36,11 +41,11 @@ public class SOAPProvider extends BaseHandler {
     public void handleMessage(Exchange exchange) throws HandlerException {
         if (exchange.getPattern().equals(ExchangePattern.IN_OUT)) {
             Message message;
-            String request = exchange.getMessage().getContent(String.class);
+            Element request = exchange.getMessage().getContent(Element.class);
+            Element name = XMLHelper.getFirstChildElementByName(request, "arg0");
             String toWhom = "";
-            int argIdx = request.indexOf("<arg0>");
-            if (argIdx > 0) {
-                toWhom = request.substring(argIdx + 6, request.indexOf("</arg0>"));
+            if (name != null) {
+                toWhom = name.getTextContent();
             }
             String response = null;
             if (toWhom.length() == 0) {
@@ -59,8 +64,12 @@ public class SOAPProvider extends BaseHandler {
                              + "   <return>Hello " + toWhom + "</return>"
                              + "</test:sayHelloResponse>";
             }
-
-            message.setContent(response);
+            try {
+                Document responseDom = SOAPUtil.parseAsDom(response);
+                message.setContent(responseDom.getDocumentElement());
+            } catch (Exception e) {
+                // Generate fault
+            }
             exchange.send(message);
         }
     }

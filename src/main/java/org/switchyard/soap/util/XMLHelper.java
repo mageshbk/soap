@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -46,16 +47,21 @@ import javax.xml.stream.XMLStreamWriter;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.Result;
 import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
-import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
 import org.apache.log4j.Logger;
+import org.w3c.dom.Element;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -402,8 +408,29 @@ public final class XMLHelper {
         return (handler1.getRootElement().equals(handler2.getRootElement()));
     }
 
-    private static SchemaFactory newSchemaFactory() {
-        return SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
+    /**
+     * Compare two DOM Nodes.
+     * @param node1 The first Node.
+     * @param node2 The second Node.
+     * @return true if equals, false otherwise.
+     * @throws ParserConfigurationException Parser confiuration exception
+     * @throws TransformerException Transformer exception
+     * @throws SAXException SAX exception
+     * @throws IOException If unable to read the stream
+     */
+    public static boolean compareXMLContent(final Node node1, final Node node2)
+        throws ParserConfigurationException, TransformerException, SAXException, IOException {
+        TransformerFactory transFactory = TransformerFactory.newInstance();
+        Transformer transformer = transFactory.newTransformer();
+        StringWriter writer1 = new StringWriter();
+        StringWriter writer2 = new StringWriter();
+        DOMSource source = new DOMSource(node1);
+        StreamResult result = new StreamResult(writer1);
+        transformer.transform(source, result);
+        source = new DOMSource(node2);
+        result = new StreamResult(writer2);
+        transformer.transform(source, result);
+        return compareXMLContent(writer1.toString(), writer2.toString());
     }
 
     /**
@@ -446,6 +473,48 @@ public final class XMLHelper {
             // synchronized as it is not guaranteed to be thread safe
             return builder.newDocument();
         }
+    }
+
+    /**
+     * Transform a DOM Node to String.
+     * @param node The Node to be transformed.
+     * @return a String representation.
+     * @throws ParserConfigurationException Parser confiuration exception
+     * @throws TransformerException Transformer exception
+     */
+    public static String toString(final Node node)
+        throws ParserConfigurationException, TransformerException {
+        TransformerFactory transFactory = TransformerFactory.newInstance();
+        Transformer transformer = transFactory.newTransformer();
+        StringWriter writer = new StringWriter();
+        DOMSource source = new DOMSource(node);
+        StreamResult result = new StreamResult(writer);
+        transformer.transform(source, result);
+        return writer.toString();
+    }
+
+    /**
+     * Get the first child Element of the supplied node that matches a given tag name.
+     *
+     * @param node The DOM Node.
+     * @param name The name of the child node to search for.
+     * @return The first child element with the matching tag name.
+     */
+    public static Element getFirstChildElementByName(Node node, String name) {
+        NodeList children = node.getChildNodes();
+        int childCount = children.getLength();
+
+        for (int i = 0; i < childCount; i++) {
+            Node child = children.item(i);
+            if (child != null
+                && child.getNodeType() == Node.ELEMENT_NODE
+                && child.getNodeName() != null
+                && child.getNodeName().equals(name)) {
+                return (Element) child;
+            }
+        }
+
+        return null;
     }
     
     /**

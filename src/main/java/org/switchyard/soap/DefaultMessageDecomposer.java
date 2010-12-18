@@ -27,7 +27,8 @@ import javax.xml.soap.SOAPMessage;
 
 import org.switchyard.Message;
 import org.switchyard.soap.util.SOAPUtil;
-import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 /**
  * The default implementation of MessageDecomposer simply copies the Message body onto SOAP
@@ -48,14 +49,13 @@ public class DefaultMessageDecomposer implements MessageDecomposer {
 
         final SOAPMessage response = SOAPUtil.SOAP_MESSAGE_FACTORY.createMessage();
         if (message != null) {
-            final Object input = message.getContent();
+            final Element input = message.getContent(Element.class);
             if (input == null) {
                 throw new SOAPException("Null response from service");
             }
-            final String soapRes = input.toString();
             try {
-                final Document root = SOAPUtil.parseAsDom(soapRes);
-                response.getSOAPBody().addDocument(root);
+                Node node = response.getSOAPBody().getOwnerDocument().importNode(input, true);
+                response.getSOAPBody().appendChild(node);
             } catch (Exception e) {
                 throw new SOAPException("Unable to parse SOAP Message", e);
             }

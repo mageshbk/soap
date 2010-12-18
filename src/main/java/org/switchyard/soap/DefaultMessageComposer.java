@@ -22,7 +22,6 @@
 
 package org.switchyard.soap;
 
-import java.io.StringWriter;
 import java.util.Iterator;
 
 import javax.xml.soap.Node;
@@ -30,12 +29,9 @@ import javax.xml.soap.SOAPBody;
 import javax.xml.soap.SOAPElement;
 import javax.xml.soap.SOAPException;
 import javax.xml.soap.SOAPMessage;
-import javax.xml.stream.XMLEventWriter;
-import javax.xml.transform.stream.StreamResult;
 
 import org.switchyard.Message;
 import org.switchyard.MessageBuilder;
-import org.switchyard.soap.util.XMLHelper;
 
 /**
  * The default implementation of MessageComposer simply copies the SOAP body into
@@ -66,10 +62,8 @@ public class DefaultMessageComposer implements MessageComposer {
                     if (found) {
                         throw new SOAPException("Found multiple SOAPElements in SOAPBody");
                     }
-                    final StringWriter sw = new StringWriter();
-                    final XMLEventWriter writer = XMLHelper.getXMLEventWriter(new StreamResult(sw));
-                    XMLHelper.readDomNode(node, writer, true);
-                    message.setContent(sw.toString());
+                    node.detachNode();
+                    message.setContent(node);
                     found = true;
                 }
             }
