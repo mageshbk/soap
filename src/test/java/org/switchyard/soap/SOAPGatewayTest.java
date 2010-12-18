@@ -58,20 +58,22 @@ public class SOAPGatewayTest {
         SOAPProvider provider = new SOAPProvider();
         _domain.registerService(PUBLISH_AS_WS_SERVICE, provider);
 
+        String port = System.getProperty("org.switchyard.saop.webservice.port");
+
         // Service exposed as WS
         _soapInbound = new SOAPGateway();
         HashMap config = new HashMap();
         config.put("publishAsWS", "true");
         config.put("wsdlLocation", "target/test-classes/HelloWebService.wsdl");
         config.put("localService", PUBLISH_AS_WS_SERVICE.getLocalPart());
-        config.put("port", "865");
+        config.put("port", port);
         _soapInbound.init(config);
         _soapInbound.start();
 
         // A WS Consumer as Service
         _soapOutbound = new SOAPGateway();
         config = new HashMap();
-        config.put("remoteWSDL", "http://localhost:865/HelloWebService?wsdl");
+        config.put("remoteWSDL", "http://localhost:" + port + "/HelloWebService?wsdl");
         config.put("serviceName", WS_CONSUMER_SERVICE.getLocalPart());
         _soapOutbound.init(config);
         _soapOutbound.start();

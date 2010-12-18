@@ -46,6 +46,35 @@
         <version.wsdl4j>1.6.2</version.wsdl4j>
     </properties>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <systemProperties>
+                        <property>
+                            <name>log4j.configuration</name>
+                            <value>file:${basedir}/src/main/config/log4jconfig.xml</value>
+                        </property>
+                        <property>
+                            <name>org.switchyard.saop.webservice.port</name>
+                            <value>48080</value>
+                        </property>
+                    </systemProperties>
+                    <includes>
+                        <include>**/*Test*.java</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/Abstract*.java</exclude>
+                        <exclude>**/*$*</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>org.switchyard</groupId>
