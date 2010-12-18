@@ -24,13 +24,18 @@ package org.switchyard.soap;
 
 import javax.xml.soap.SOAPMessage;
 import javax.xml.ws.Provider;
+import javax.xml.ws.Service.Mode;
+import javax.xml.ws.ServiceMode;
+import javax.xml.ws.WebServiceProvider;
 
 
 /**
  * This is the abstract base class for a SOAP messages.
  * @author <a href="mailto:mageshbk@jboss.com">Magesh Kumar B</a>
  */
-public abstract class BaseWebService implements Provider<SOAPMessage> {
+@WebServiceProvider
+@ServiceMode(Mode.MESSAGE)
+public class BaseWebService implements Provider<SOAPMessage> {
     private InboundHandler _serviceConsumer;
 
     protected BaseWebService() {

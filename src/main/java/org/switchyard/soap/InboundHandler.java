@@ -25,6 +25,7 @@ package org.switchyard.soap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.wsdl.Definition;
 import javax.wsdl.Port;
@@ -117,7 +118,6 @@ public class InboundHandler extends BaseHandler {
      */
     public void start() throws WebServicePublishException {
         try {
-            final JAXWSProviderClassGenerator generator = new JAXWSProviderClassGenerator();
             Definition definition = WSDLUtil.readWSDL(_wsdlLocation);
             // Only first definition for now
             javax.wsdl.Service wsdlService = (javax.wsdl.Service) definition.getServices().values().iterator().next();
@@ -126,15 +126,20 @@ public class InboundHandler extends BaseHandler {
             // Only first port for now
             _port = (Port) wsdlService.getPorts().values().iterator().next();
             String portName = _port.getName();
-            Class<BaseWebService> wsProviderClass = generator.generate(_wsName, portName, targetNamespace);
-            BaseWebService wsProvider = wsProviderClass.newInstance();
+            BaseWebService wsProvider = new BaseWebService();
             // Hook the handler
             wsProvider.setConsumer(this);
+
             _endpoint = Endpoint.create(wsProvider);
             List<Source> metadata = new ArrayList<Source>();
             StreamSource source = WSDLUtil.getStream(_wsdlLocation);
             metadata.add(source);
             _endpoint.setMetadata(metadata);
+            Map<String, Object> properties = new HashMap<String, Object>();
+            properties.put(Endpoint.WSDL_SERVICE, new QName(targetNamespace, _wsName));
+            properties.put(Endpoint.WSDL_PORT, new QName(targetNamespace, portName));
+            _endpoint.setProperties(properties);
+
             _endpoint.publish(_endpointUrl + _wsName);
             LOGGER.info("WebService published at " + _endpointUrl + _wsName);
         } catch (Exception e) {
