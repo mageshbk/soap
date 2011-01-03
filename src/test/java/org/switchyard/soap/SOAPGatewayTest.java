@@ -23,7 +23,19 @@
 package org.switchyard.soap;
 
 import java.io.File;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import javax.xml.namespace.QName;
 
 import org.junit.Assert;
@@ -46,10 +58,57 @@ import org.w3c.dom.Element;
 public class SOAPGatewayTest {
     private static final QName PUBLISH_AS_WS_SERVICE = new QName("publish-as-ws");
     private static final QName WS_CONSUMER_SERVICE = new QName("webservice-consumer");
+    private static final int DEFAULT_THREAD_COUNT = 10;
+    private static final long DEFAULT_NO_OF_THREADS = 100;
 
+    private static URL _serviceURL;
     private static ServiceDomain _domain;
     private static SOAPGateway _soapInbound;
     private static SOAPGateway _soapOutbound;
+    private long _noOfThreads = DEFAULT_NO_OF_THREADS;
+
+    private class WebServiceInvoker implements Callable<String> {
+
+        private long _threadNo;
+
+        public WebServiceInvoker(long threadNo) {
+            _threadNo = threadNo;
+        }
+
+        public String call() {
+            String input = "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>"
+                     + "   <test:sayHello xmlns:test=\"http://test.ws/\">"
+                     + "      <arg0>Thread " + _threadNo + "</arg0>"
+                     + "   </test:sayHello>"
+                     + "</soap:Body></soap:Envelope>";
+            String output = null;
+
+            try {
+                HttpURLConnection con = (HttpURLConnection) _serviceURL.openConnection();
+                con.setDoInput(true);
+                con.setDoOutput(true);
+                con.setRequestProperty("Content-type", "text/xml; charset=utf-8");
+                OutputStream outStream = con.getOutputStream();
+                outStream.write(input.getBytes());
+                InputStream inStream = con.getInputStream();
+                ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+                byte[] byteBuf = new byte[256];
+                int len = inStream.read(byteBuf);
+                while (len > -1) {
+                    byteStream.write(byteBuf, 0, len);
+                    len = inStream.read(byteBuf);
+                }
+                outStream.close();
+                inStream.close();
+                byteStream.close();
+                output =  byteStream.toString();
+
+            } catch (IOException ioe) {
+                output = "<error>" + ioe + "</error>";
+            }
+            return output;
+        }
+    }
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -70,10 +129,15 @@ public class SOAPGatewayTest {
         _soapInbound.init(config);
         _soapInbound.start();
 
+        if (port == null) {
+            port = "8080";
+        }
+        _serviceURL = new URL("http://localhost:" + port + "/HelloWebService");
+
         // A WS Consumer as Service
         _soapOutbound = new SOAPGateway();
         config = new HashMap();
-        config.put("remoteWSDL", "http://localhost:" + port + "/HelloWebService?wsdl");
+        config.put("remoteWSDL", _serviceURL.toExternalForm() + "?wsdl");
         config.put("serviceName", WS_CONSUMER_SERVICE.getLocalPart());
         _soapOutbound.init(config);
         _soapOutbound.start();
@@ -146,5 +210,31 @@ public class SOAPGatewayTest {
         consumer.waitForMessage();
         Element response = consumer.getMessages().peek().getMessage().getContent(Element.class);
         Assert.assertTrue("Expected \r\n" + XMLHelper.toString(output) + "\r\nbut was \r\n" + XMLHelper.toString(response), XMLHelper.compareXMLContent(output, response));
+    }
+
+    @Test
+    public void invokeMultiThreaded() throws Exception {
+        String output = null;
+        String response = null;
+        Collection<Callable<String>> callables = new ArrayList<Callable<String>>();
+        for (int i = 0; i < _noOfThreads; i++) {
+            callables.add(new WebServiceInvoker(i));
+        }
+
+        ExecutorService executorService = Executors.newFixedThreadPool(DEFAULT_THREAD_COUNT);
+        Collection<Future<String>> futures = executorService.invokeAll(callables);
+        Assert.assertEquals(futures.size(), _noOfThreads);
+        int i = 0;
+
+        for (Future<String> future : futures) {
+            response = future.get();
+            output =  "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>"
+                     + "   <test:sayHelloResponse xmlns:test=\"http://test.ws/\">"
+                     + "      <return>Hello Thread " + i + "</return>"
+                     + "   </test:sayHelloResponse>"
+                     + "</soap:Body></soap:Envelope>";
+            Assert.assertTrue("Expected \r\n" + output + "\r\nbut was \r\n" + response, XMLHelper.compareXMLContent(output, response));
+            i++;
+        }
     }
 }

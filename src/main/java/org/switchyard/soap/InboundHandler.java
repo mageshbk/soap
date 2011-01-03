@@ -54,13 +54,15 @@ public class InboundHandler extends BaseHandler {
     private static final Logger LOGGER = Logger.getLogger(InboundHandler.class);
     private static final long DEFAULT_TIMEOUT = 15000;
     private static final int DEFAULT_SLEEP = 100;
+
+    private static ThreadLocal<SOAPMessage> _response = new ThreadLocal<SOAPMessage>();
+
     private MessageComposer _composer;
     private MessageDecomposer _decomposer;
     private ServiceDomain _domain;
     private String _wsdlLocation;
     private QName _serviceName;
     private long _waitTimeout = DEFAULT_TIMEOUT; // default of 15 seconds
-    private volatile SOAPMessage _response;
     private Endpoint _endpoint;
     private String _endpointUrl;
     private String _wsName;
@@ -163,7 +165,7 @@ public class InboundHandler extends BaseHandler {
     @Override
     public void handleMessage(final Exchange exchange) throws HandlerException {
         try {
-            _response = _decomposer.decompose(exchange.getMessage());
+            _response.set(_decomposer.decompose(exchange.getMessage()));
         } catch (SOAPException se) {
             // generate fault
             LOGGER.error(se);
@@ -177,7 +179,7 @@ public class InboundHandler extends BaseHandler {
     @Override
     public void handleFault(final Exchange exchange) {
         try {
-            _response = _decomposer.decompose(exchange.getMessage());
+            _response.set(_decomposer.decompose(exchange.getMessage()));
         } catch (SOAPException se) {
             // generate fault
             LOGGER.error(se);
@@ -240,7 +242,7 @@ public class InboundHandler extends BaseHandler {
      * @return the SOAP response
      */
     public SOAPMessage invoke(final SOAPMessage soapMessage) {
-        _response = null;
+        _response.remove();
         try {
             if (SOAPUtil.isMessageOneWay(_port, soapMessage)) {
                 Exchange exchange = _domain.createExchange(_serviceName, ExchangePattern.IN_ONLY, this);
@@ -256,7 +258,9 @@ public class InboundHandler extends BaseHandler {
             // generate fault
             LOGGER.error(se);
         }
-        return _response;
+        SOAPMessage response = _response.get();
+        _response.remove();
+        return response;
     }
 
     /**
@@ -266,7 +270,7 @@ public class InboundHandler extends BaseHandler {
         long start = System.currentTimeMillis();
 
         while (System.currentTimeMillis() < start + _waitTimeout) {
-            if (_response != null) {
+            if (_response.get() != null) {
                 return;
             }
             try {
